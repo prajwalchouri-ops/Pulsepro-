@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "UserPublic": {
+      "title": "UserPublic",
+      "description": "Non-PII public identity record for a signed-in PulsePro member.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public display name shown on dispatch logs and leaderboards.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["ownerId", "displayName", "createdAt", "updatedAt"]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII record containing member email address.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the account owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["ownerId", "email", "createdAt", "updatedAt"]
+    },
+    "BookingDoc": {
+      "title": "BookingDoc",
+      "description": "Service booking record stored inside the owner's user-scoped subcollection.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "referenceCode": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 16,
+          "pattern": "^PP-[0-9]{4,8}$"
+        },
+        "proId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "proName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "proRole": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "serviceSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "neighborhood": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dateLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "timeSlot": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "hours": {
+          "type": "integer"
+        },
+        "hourlyRate": {
+          "type": "integer"
+        },
+        "protectionFee": {
+          "type": "integer"
+        },
+        "totalAmount": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Confirmed", "En Route", "On Site", "Completed", "Cancelled"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "referenceCode",
+        "proId",
+        "proName",
+        "proRole",
+        "serviceSummary",
+        "neighborhood",
+        "address",
+        "dateLabel",
+        "timeSlot",
+        "hours",
+        "hourlyRate",
+        "protectionFee",
+        "totalAmount",
+        "notes",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GameScoreDoc": {
+      "title": "GameScoreDoc",
+      "description": "3D Dispatch Runner run score persisted by authenticated players.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "playerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "score": {
+          "type": "integer"
+        },
+        "dispatchesCleared": {
+          "type": "integer"
+        },
+        "durationSeconds": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "playerName",
+        "score",
+        "dispatchesCleared",
+        "durationSeconds",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublic" },
+      "description": "Public non-PII profile document keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Owner-only private subcollection containing email PII."
+    },
+    "/users/{userId}/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/BookingDoc" },
+      "description": "Owner-only bookings subcollection storing home visit bookings and status."
+    },
+    "/gameScores/{scoreId}": {
+      "schema": { "$ref": "#/entities/GameScoreDoc" },
+      "description": "Authenticated user 3D Dispatch Runner scores."
+    }
+  }
+}

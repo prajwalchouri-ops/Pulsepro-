@@ -1,0 +1,251 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserPublic(data) {
+      return data.keys().hasAll(['ownerId', 'displayName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'displayName', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['ownerId', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'email', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll([
+          'ownerId', 'referenceCode', 'proId', 'proName', 'proRole',
+          'serviceSummary', 'neighborhood', 'address', 'dateLabel', 'timeSlot',
+          'hours', 'hourlyRate', 'protectionFee', 'totalAmount', 'notes',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'referenceCode', 'proId', 'proName', 'proRole',
+          'serviceSummary', 'neighborhood', 'address', 'dateLabel', 'timeSlot',
+          'hours', 'hourlyRate', 'protectionFee', 'totalAmount', 'notes',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.referenceCode is string
+        && data.referenceCode.size() >= 6
+        && data.referenceCode.size() <= 16
+        && data.referenceCode.matches('^PP-[0-9]{4,8}$')
+        && data.proId is string
+        && data.proId.size() >= 1
+        && data.proId.size() <= 64
+        && data.proName is string
+        && data.proName.size() >= 1
+        && data.proName.size() <= 120
+        && data.proRole is string
+        && data.proRole.size() >= 1
+        && data.proRole.size() <= 120
+        && data.serviceSummary is string
+        && data.serviceSummary.size() >= 1
+        && data.serviceSummary.size() <= 180
+        && data.neighborhood is string
+        && data.neighborhood.size() >= 1
+        && data.neighborhood.size() <= 120
+        && data.address is string
+        && data.address.size() >= 1
+        && data.address.size() <= 200
+        && data.dateLabel is string
+        && data.dateLabel.size() >= 1
+        && data.dateLabel.size() <= 60
+        && data.timeSlot is string
+        && data.timeSlot.size() >= 1
+        && data.timeSlot.size() <= 60
+        && data.hours is int
+        && data.hours >= 1
+        && data.hours <= 24
+        && data.hourlyRate is int
+        && data.hourlyRate >= 1
+        && data.hourlyRate <= 5000
+        && data.protectionFee is int
+        && data.protectionFee >= 0
+        && data.protectionFee <= 500
+        && data.totalAmount is int
+        && data.totalAmount >= 1
+        && data.totalAmount <= 100000
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.status is string
+        && data.status.size() >= 1
+        && data.status.size() <= 32
+        && data.status in ['Confirmed', 'En Route', 'On Site', 'Completed', 'Cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGameScore(data) {
+      return data.keys().hasAll([
+          'ownerId', 'playerName', 'score', 'dispatchesCleared', 'durationSeconds', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'playerName', 'score', 'dispatchesCleared', 'durationSeconds', 'createdAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId == request.auth.uid
+        && data.playerName is string
+        && data.playerName.size() >= 1
+        && data.playerName.size() <= 100
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 1000000
+        && data.dispatchesCleared is int
+        && data.dispatchesCleared >= 0
+        && data.dispatchesCleared <= 10000
+        && data.durationSeconds is int
+        && data.durationSeconds >= 0
+        && data.durationSeconds <= 86400
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isVerified()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserPublic(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUserPublic(incoming())
+        && request.auth.uid == userId
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+      allow delete: if false;
+
+      // Owner-isolated PII subcollection
+      match /private/{docId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(docId) && request.auth.uid == userId;
+        allow list: if false;
+        allow create: if isVerified()
+          && isValidId(userId)
+          && isValidId(docId)
+          && docId == 'info'
+          && request.auth.uid == userId
+          && isValidUserPrivate(incoming())
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isVerified()
+          && isValidId(userId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isValidUserPrivate(incoming())
+          && request.auth.uid == userId
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      // Owner-scoped bookings subcollection
+      match /bookings/{bookingId} {
+        allow get: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(bookingId)
+          && request.auth.uid == userId
+          && existing().ownerId == request.auth.uid;
+        allow list: if isSignedIn()
+          && request.auth.uid == userId
+          && existing().ownerId == request.auth.uid;
+        allow create: if isVerified()
+          && isValidId(userId)
+          && isValidId(bookingId)
+          && request.auth.uid == userId
+          && isValidBooking(incoming())
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isVerified()
+          && isValidId(userId)
+          && isValidId(bookingId)
+          && isValidBooking(incoming())
+          && request.auth.uid == userId
+          && existing().ownerId == request.auth.uid
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && !(existing().status in ['Completed', 'Cancelled'])
+          && (
+            // Action: Reschedule arrival window
+            incoming().diff(existing()).affectedKeys().hasOnly(['timeSlot', 'updatedAt']) ||
+            // Action: Advance or cancel booking status
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          );
+        allow delete: if false;
+      }
+    }
+
+    // 5. 3D Dispatch Runner Scores
+    match /gameScores/{scoreId} {
+      allow get: if isSignedIn()
+        && isValidId(scoreId)
+        && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn()
+        && existing().ownerId == request.auth.uid;
+      allow create: if isVerified()
+        && isValidId(scoreId)
+        && isValidGameScore(incoming())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
